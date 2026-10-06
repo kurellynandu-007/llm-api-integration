@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudyMate AI</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar for context control / brand -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="logo">
+                     <span class="logo-icon">🤖</span>
+                </div>
+                <h1>StudyMate AI</h1>
+                <p>Your programming & AI companion</p>
+            </div>
+            <div class="actions">
+                <button id="clearBtn" class="secondary-btn">Clear Chat</button>
+            </div>
+        </aside>
+
+        <!-- Main chat interface -->
+        <main class="chat-wrapper">
+            <header class="chat-header">
+                <h2>Chat Session</h2>
+                <div class="status-indicator">
+                    <span id="connectionStatus" class="status-dot"></span>
+                    <span id="connectionText">Checking backend...</span>
+                </div>
+            </header>
+            
+            <div id="chatContainer" class="chat-container">
+                <!-- Welcome Message Initial State -->
+                <div class="message assistant-message">
+                    <div class="bubble">
+                        Hi! I'm StudyMate AI. I'm here to help you learn programming and AI concepts. How can I help you today?
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error Banner -->
+            <div id="errorBanner" class="error-banner hidden"></div>
+
+            <div class="input-container">
+                <form id="chatForm">
+                    <input 
+                        type="text" 
+                        id="messageInput" 
+                        placeholder="Type your message... (e.g. explain recursion)" 
+                        autocomplete="off"
+                        required
+                    />
+                    <button type="submit" id="sendBtn" class="primary-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    </button>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
