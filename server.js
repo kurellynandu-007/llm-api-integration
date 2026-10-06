@@ -27,13 +27,13 @@ const conversations = new Map();
 // It automatically picks up GEMINI_API_KEY from environment variables if not passed explicitly
 let ai;
 try {
-  if (process.env.GEMINI_API_KEY) {
-      ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-  } else {
-     console.warn("WARNING: GEMINI_API_KEY is missing in .env file.");
-  }
+    if (process.env.GEMINI_API_KEY) {
+        ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    } else {
+        console.warn("WARNING: GEMINI_API_KEY is missing in .env file.");
+    }
 } catch (error) {
-  console.error("Failed to initialize Google GenAI SDK:", error.message);
+    console.error("Failed to initialize Google GenAI SDK:", error.message);
 }
 
 // System prompt defining StudyMate AI's personality
@@ -55,10 +55,10 @@ function getContextMessages(history) {
     // Keep only the latest 10 messages
     // Since history contains user and model alternates, keeping the last 10 messages means 5 turns.
     const MAX_MESSAGES = 10;
-    const truncatedHistory = history.length > MAX_MESSAGES 
-        ? history.slice(history.length - MAX_MESSAGES) 
+    const truncatedHistory = history.length > MAX_MESSAGES
+        ? history.slice(history.length - MAX_MESSAGES)
         : history;
-    
+
     return {
         contents: truncatedHistory,
         systemInstruction: SYSTEM_PROMPT
@@ -87,7 +87,7 @@ app.post('/api/chat', async (req, res) => {
 
         // Check if API key is configured
         if (!ai) {
-             return res.status(500).json({ error: 'Server configuration error: Gemini API key is missing.' });
+            return res.status(500).json({ error: 'Server configuration error: Gemini API key is missing.' });
         }
 
         // Retrieve or initialize conversation history
@@ -103,19 +103,33 @@ app.post('/api/chat', async (req, res) => {
 
         const { contents, systemInstruction } = getContextMessages(history);
 
-        // Call Gemini API
-        // For multi-turn with system prompts in @google/genai:
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: contents,
-            config: {
-                systemInstruction: systemInstruction,
-                temperature: 0.7
+        // Call Gemini API with automatic retries for rate limits
+        let response;
+        let retries = 3;
+        while (retries > 0) {
+            try {
+                response = await ai.models.generateContent({
+                    model: 'gemini-2.5-flash',
+                    contents: contents,
+                    config: {
+                        systemInstruction: systemInstruction,
+                        temperature: 0.7
+                    }
+                });
+                break; // Success, exit retry loop
+            } catch (apiError) {
+                if ((apiError.status === 429 || (apiError.message && apiError.message.includes('429'))) && retries > 1) {
+                    retries--;
+                    console.warn('Rate limit hit. Retrying in 4 seconds... (' + retries + ' retries left)');
+                    await new Promise(resolve => setTimeout(resolve, 4000));
+                } else {
+                    throw apiError; // Throw other errors or if out of retries
+                }
             }
-        });
+        }
 
         if (!response.text) {
-             throw new Error("Invalid response received from Gemini API");
+            throw new Error("Invalid response received from Gemini API");
         }
 
         const reply = response.text;
@@ -134,19 +148,19 @@ app.post('/api/chat', async (req, res) => {
 
     } catch (error) {
         console.error('API Error:', error.message);
-        
+
         let statusCode = 500;
         let errorMessage = 'An unexpected error occurred while communicating with the AI.';
 
         // Handle specific errors based on API response structure if needed
         if (error.status === 429 || (error.message && error.message.includes('429'))) {
-             statusCode = 429;
-             errorMessage = 'Rate limit exceeded. Please wait a moment and try again.';
+            statusCode = 429;
+            errorMessage = 'Rate limit exceeded. Please wait a moment and try again.';
         } else if (error.status === 401 || error.status === 403 || (error.message && error.message.includes('API_KEY_INVALID'))) {
-             statusCode = 500;
-             errorMessage = 'Authentication Error: Invalid API key configuration.';
+            statusCode = 500;
+            errorMessage = 'Authentication Error: Invalid API key configuration.';
         }
-        
+
         res.status(statusCode).json({ error: errorMessage });
     }
 });

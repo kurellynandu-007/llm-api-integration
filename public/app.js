@@ -4,32 +4,139 @@ document.addEventListener('DOMContentLoaded', () => {
     const messageInput = document.getElementById('messageInput');
     const chatContainer = document.getElementById('chatContainer');
     const sendBtn = document.getElementById('sendBtn');
-    const clearBtn = document.getElementById('clearBtn');
+    const clearBtn = document.getElementById('clearBtn'); // Delete All
+    const newChatBtn = document.getElementById('newChatBtn');
+    const historyList = document.getElementById('historyList');
     const errorBanner = document.getElementById('errorBanner');
     const connectionStatus = document.getElementById('connectionStatus');
     const connectionText = document.getElementById('connectionText');
 
-    // State
+    // State Variables
+    let chats = JSON.parse(localStorage.getItem('studymate_chats')) || {};
     let conversationId = initializeConversationId();
     let isWaitingForResponse = false;
 
-    // Health check on load
+    // Initialize App
     checkBackendHealth();
+    renderHistoryList();
+    loadConversation(conversationId);
 
     // Event Listeners
     chatForm.addEventListener('submit', handleSend);
-    clearBtn.addEventListener('click', clearConversation);
+    clearBtn.addEventListener('click', deleteAllHistory);
+    newChatBtn.addEventListener('click', createNewChat);
 
     /**
-     * Initializes or retrieves the unique conversation ID from localStorage.
+     * Initializes or retrieves the current active conversation ID from localStorage.
+     * Ensures the chat object exists in our local store.
      */
     function initializeConversationId() {
-        let id = localStorage.getItem('studymate_conversation_id');
-        if (!id) {
-            id = 'sess_' + Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
-            localStorage.setItem('studymate_conversation_id', id);
+        let id = localStorage.getItem('studymate_active_id');
+
+        // If no active ID, or the active ID isn't in our chats dictionary, create a new one
+        if (!id || !chats[id]) {
+            id = generateNewId();
+            createNewChatObject(id);
+            localStorage.setItem('studymate_active_id', id);
         }
         return id;
+    }
+
+    function generateNewId() {
+        return 'sess_' + Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
+    }
+
+    function createNewChatObject(id) {
+        chats[id] = {
+            id: id,
+            title: 'New Chat',
+            messages: [],
+            updatedAt: Date.now()
+        };
+        saveChatsLocally();
+    }
+
+    /**
+     * Creates a fresh new chat session
+     */
+    function createNewChat() {
+        if (isWaitingForResponse) return;
+
+        conversationId = generateNewId();
+        createNewChatObject(conversationId);
+        localStorage.setItem('studymate_active_id', conversationId);
+
+        loadConversation(conversationId);
+        renderHistoryList();
+
+        if (window.innerWidth > 768) {
+            messageInput.focus();
+        }
+    }
+
+    /**
+     * Renders the sidebar history list
+     */
+    function renderHistoryList() {
+        historyList.innerHTML = '';
+
+        // Convert to array and sort by updatedAt descending
+        const chatArray = Object.values(chats).sort((a, b) => b.updatedAt - a.updatedAt);
+
+        chatArray.forEach(chat => {
+            const li = document.createElement('li');
+            li.className = `history-item ${chat.id === conversationId ? 'active' : ''}`;
+            li.textContent = chat.title || 'New Chat';
+            li.title = chat.title || 'New Chat';
+
+            li.addEventListener('click', () => {
+                if (isWaitingForResponse || chat.id === conversationId) return;
+                conversationId = chat.id;
+                localStorage.setItem('studymate_active_id', conversationId);
+                loadConversation(conversationId);
+                renderHistoryList(); // Re-render to update 'active' class
+            });
+
+            historyList.appendChild(li);
+        });
+    }
+
+    /**
+     * Loads a specific conversation into the view
+     */
+    function loadConversation(id) {
+        chatContainer.innerHTML = ''; // Clear current view
+        hideError();
+
+        const chat = chats[id];
+        if (!chat || chat.messages.length === 0) {
+            // Show welcome message if empty
+            chatContainer.innerHTML = `
+                <div class="message assistant-message">
+                    <div class="bubble">
+                        Hi! I'm StudyMate AI. I'm here to help you learn programming and AI concepts. How can I help you today?
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        // Render history
+        chat.messages.forEach(msg => {
+            renderMessage(msg.role, msg.text);
+        });
+
+        scrollToBottom();
+    }
+
+    /**
+     * Saves the `chats` dictionary to localStorage
+     */
+    function saveChatsLocally(updateCurrentTime = false) {
+        if (updateCurrentTime && chats[conversationId]) {
+            chats[conversationId].updatedAt = Date.now();
+        }
+        localStorage.setItem('studymate_chats', JSON.stringify(chats));
     }
 
     /**
@@ -63,11 +170,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const messageText = messageInput.value.trim();
         if (!messageText) return;
 
-        // Clear previous errors
         hideError();
 
-        // 1. Render User Message
-        appendMessage('user', messageText);
+        // 1. Save and Render User Message
+        const chat = chats[conversationId];
+
+        // Update Title if this is the first message
+        if (chat.messages.length === 0) {
+            chat.title = messageText.length > 25 ? messageText.substring(0, 25) + '...' : messageText;
+        }
+
+        chat.messages.push({ role: 'user', text: messageText });
+        saveChatsLocally(true);
+        renderHistoryList();
+
+        renderMessage('user', messageText);
 
         // Disable input while waiting
         messageInput.value = '';
@@ -83,9 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 3. Send request to backend
             const response = await fetch('/api/chat', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     conversationId: conversationId,
                     message: messageText
@@ -98,17 +213,21 @@ document.addEventListener('DOMContentLoaded', () => {
             removeElement(loadingId);
 
             if (!response.ok) {
-                // If the response is not OK, throw error to be caught by catch block
                 throw new Error(data.error || 'Failed to get response from server.');
             }
 
-            // 5. Render Assistant Reply
-            appendMessage('assistant', data.reply);
+            // 5. Save and Render Assistant Reply
+            chat.messages.push({ role: 'assistant', text: data.reply });
+            saveChatsLocally(true);
+            renderMessage('assistant', data.reply);
+
+            // Bring this chat back to the top of the history list
+            renderHistoryList();
 
         } catch (error) {
             removeElement(loadingId);
             showError(error.message);
-            // Optionally could add a "failed" message bubble here, but an error banner is cleaner
+            // Optionally, remove the user message if it failed, but usually it's good to keep it so they can read what they typed
         } finally {
             // Re-enable input
             messageInput.disabled = false;
@@ -122,42 +241,37 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * Clears the current conversation history locally and generates a new ID.
+     * Clears all local conversation history.
      */
-    function clearConversation() {
-        if (!confirm('Are you sure you want to clear this conversation?')) return;
+    function deleteAllHistory() {
+        if (!confirm('Are you sure you want to permanently delete ALL chat history?')) return;
 
-        localStorage.removeItem('studymate_conversation_id');
+        localStorage.removeItem('studymate_chats');
+        localStorage.removeItem('studymate_active_id');
+
+        chats = {};
         conversationId = initializeConversationId();
 
-        // Reset UI with welcome message
-        chatContainer.innerHTML = `
-            <div class="message assistant-message">
-                <div class="bubble">
-                    Conversation cleared! Let's start a new topic. How can I help you today?
-                </div>
-            </div>
-        `;
+        renderHistoryList();
+        loadConversation(conversationId);
         hideError();
     }
 
     /**
      * Appends a message to the chat container.
      */
-    function appendMessage(role, text) {
+    function renderMessage(role, text) {
         const msgDiv = document.createElement('div');
         msgDiv.className = `message ${role}-message`;
 
         const bubbleDiv = document.createElement('div');
         bubbleDiv.className = 'bubble';
 
-        // Basic formatting for the text (escape html, handle newlines, very basic code blocks)
-        // In a real app, you would use marked.js or similar for full markdown support
         let formattedText = escapeHTML(text)
             .replace(/\n/g, '<br>')
-            .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>') // codeblocks
-            .replace(/`([^`]+)`/g, '<code>$1</code>') // inline code
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); // bold
+            .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
         bubbleDiv.innerHTML = formattedText;
         msgDiv.appendChild(bubbleDiv);
@@ -166,9 +280,6 @@ document.addEventListener('DOMContentLoaded', () => {
         scrollToBottom();
     }
 
-    /**
-     * Adds a temporary loading animation bubble while waiting for API.
-     */
     function appendLoadingIndicator() {
         const id = 'loading-' + Date.now();
         const msgDiv = document.createElement('div');
@@ -189,39 +300,24 @@ document.addEventListener('DOMContentLoaded', () => {
         return id;
     }
 
-    /**
-     * Removes an element by ID
-     */
     function removeElement(id) {
         const el = document.getElementById(id);
         if (el) el.remove();
     }
 
-    /**
-     * Shows an error message in the banner.
-     */
     function showError(message) {
         errorBanner.textContent = message;
         errorBanner.classList.remove('hidden');
     }
 
-    /**
-     * Hides the error banner.
-     */
     function hideError() {
         errorBanner.classList.add('hidden');
     }
 
-    /**
-     * Scrolls the chat to the bottom.
-     */
     function scrollToBottom() {
         chatContainer.scrollTop = chatContainer.scrollHeight;
     }
 
-    /**
-     * Escape HTML function to prevent XSS from user/bot messages visually
-     */
     function escapeHTML(str) {
         return str
             .replace(/&/g, '&amp;')

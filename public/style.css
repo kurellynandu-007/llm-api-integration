@@ -126,6 +126,63 @@ button {
     opacity: 0.7;
 }
 
+/* History Section */
+.history-section {
+    margin-top: 2rem;
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 1rem;
+    padding-right: 0.5rem;
+}
+
+.history-section::-webkit-scrollbar {
+    width: 4px;
+}
+
+.history-section::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 4px;
+}
+
+.history-section h3 {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 0.75rem;
+}
+
+.history-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.history-item {
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--text-main);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border: 1px solid transparent;
+}
+
+.history-item:hover {
+    background-color: var(--secondary);
+}
+
+.history-item.active {
+    background-color: var(--primary);
+    color: white;
+    font-weight: 500;
+}
+
 /* Chat Wrapper */
 .chat-wrapper {
     flex: 1;
@@ -167,8 +224,13 @@ button {
     background-color: #fbbf24;
 }
 
-.status-dot.online { background-color: var(--success); }
-.status-dot.offline { background-color: var(--error); }
+.status-dot.online {
+    background-color: var(--success);
+}
+
+.status-dot.offline {
+    background-color: var(--error);
+}
 
 
 /* Chat Container */
@@ -189,8 +251,15 @@ button {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .user-message {
@@ -237,7 +306,7 @@ button {
 }
 
 .bubble code {
-    background-color: rgba(0,0,0,0.05);
+    background-color: rgba(0, 0, 0, 0.05);
     padding: 0.2rem 0.4rem;
     border-radius: 4px;
     font-family: monospace;
@@ -245,7 +314,7 @@ button {
 }
 
 .user-message .bubble code {
-    background-color: rgba(255,255,255,0.2);
+    background-color: rgba(255, 255, 255, 0.2);
 }
 
 /* Loading Indicator */
@@ -271,12 +340,25 @@ button {
     animation: bounce 1.4s infinite ease-in-out both;
 }
 
-.typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
-.typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+.typing-indicator span:nth-child(1) {
+    animation-delay: -0.32s;
+}
+
+.typing-indicator span:nth-child(2) {
+    animation-delay: -0.16s;
+}
 
 @keyframes bounce {
-    0%, 80%, 100% { transform: scale(0); }
-    40% { transform: scale(1); }
+
+    0%,
+    80%,
+    100% {
+        transform: scale(0);
+    }
+
+    40% {
+        transform: scale(1);
+    }
 }
 
 /* Error Banner */
@@ -299,8 +381,15 @@ button {
 }
 
 @keyframes slideDown {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 
@@ -349,6 +438,7 @@ button {
     .app-container {
         flex-direction: column;
     }
+
     .sidebar {
         width: 100%;
         height: auto;
@@ -358,31 +448,40 @@ button {
         border-right: none;
         border-bottom: 1px solid var(--border);
     }
+
     .brand {
         display: flex;
         align-items: center;
         gap: 1rem;
         text-align: left;
     }
+
     .logo {
         width: 40px;
         height: 40px;
         margin: 0;
     }
+
     .logo-icon {
         font-size: 20px;
     }
-    .brand h1 { font-size: 1.25rem; }
-    .brand p { display: none; }
-    
+
+    .brand h1 {
+        font-size: 1.25rem;
+    }
+
+    .brand p {
+        display: none;
+    }
+
     .chat-container {
         padding: 1rem;
     }
-    
+
     .bubble {
         max-width: 90%;
     }
-    
+
     .input-container {
         padding: 1rem;
     }
